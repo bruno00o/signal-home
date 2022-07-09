@@ -13,14 +13,13 @@ import websocket
 from time import sleep
 
 # Recap messages
-
 START = "Démarrage de Signal-Home"
-
-# Hours
 
 # Will not send X is back between hour 1 and hour 2
 NO_SEND = ["07:00:00", "23:59:59"]
-DELTA_BEFORE_REMOVING = 2
+
+# Time before removing the person from the home
+DELTA_BEFORE_REMOVING = 15
 
 
 class signal_home:
@@ -59,7 +58,6 @@ class signal_home:
         Check if the date has changed
         """
         if self.date != datetime.now().strftime("%d/%m/%Y"):
-            print("Nouveau jour!")
             self.date = datetime.now().strftime("%d/%m/%Y")
             messages.BOT.delAllAttachments()
             self.recap = {}
@@ -83,13 +81,28 @@ class signal_home:
         else:
             assert False, "Error while getting devices connected"
 
+    def check_if_at_home(self, name):
+        """
+        Check if a person is at home
+        """
+        api = FreeboxAPI()
+        r = api.get_devices_connected()
+        mac = self.macs[name]
+        if r["success"]:
+            for device in r["result"]:
+                if "l3connectivities" in list(device.keys()):
+                    if (device["l2ident"]["id"]).lower() in mac:
+                        if device["reachable"] and device["active"]:
+                            return True
+        return False
+
     def add_at_home(self, name):
         """
         Add a person to the list of people at home
         """
-        if 'left_time' in self.family[name]:
-            del self.family[name]['left_time']
         if name not in self.at_home:
+            if 'left_time' in self.family[name]:
+                del self.family[name]['left_time']
             self.at_home.append(name)
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
@@ -102,18 +115,23 @@ class signal_home:
         """
         Remove a person from the list of people at home
         """
-        if 'left_time' in self.family[name]:
-            left_time = self.family[name]['left_time']
-            updated_time = (
-                left_time + timedelta(minutes=DELTA_BEFORE_REMOVING))
-            current_time = datetime.now()
-            if current_time > updated_time:
-                self.at_home.remove(name)
-                self.add_to_recap(left_time.strftime("%H:%M"),
-                                  messages.IS_AWAY[self.family[name]['gender']][0].format(name))
-                del self.family[name]['left_time']
-        else:
-            self.before_removing(name)
+        if name in self.at_home:
+            if 'left_time' in self.family[name]:
+                left_time = self.family[name]['left_time']
+                updated_time = (
+                    left_time + timedelta(minutes=DELTA_BEFORE_REMOVING))
+                current_time = datetime.now()
+
+                if current_time > updated_time:
+                    if self.check_if_at_home(name):
+                        del self.family[name]['left_time']
+                    else:
+                        self.at_home.remove(name)
+                        self.add_to_recap(left_time.strftime("%H:%M"),
+                                          messages.IS_AWAY[self.family[name]['gender']][0].format(name))
+                        del self.family[name]['left_time']
+            else:
+                self.before_removing(name)
 
     def before_removing(self, name):
         """
@@ -132,6 +150,9 @@ class signal_home:
         }
         ws.send(json.dumps(to_send))
 
+    def on_error(self, ws, error):
+        print("error : " + str(error))
+
     def ws_message(self, ws,  message):
         """
         Message received from the websocket
@@ -142,6 +163,7 @@ class signal_home:
         if "action" in list(res.keys()) and res["action"] == "register":
             messages.send_connection_established()
         else:
+            print(res)
             for user in list(self.macs.keys()):
                 if "l3connectivities" in list(res["result"].keys()):
                     if (res["result"]["l2ident"]["id"]).lower() in self.macs[user]:
@@ -150,7 +172,8 @@ class signal_home:
                             self.add_at_home(member.get('name'))
                         else:
                             member = self.family[user]
-                            self.remove_at_home(member.get('name'))
+                            if not self.check_if_at_home(member.get('name')):
+                                self.remove_at_home(member.get('name'))
 
     def ws_thread(self):
         """
@@ -160,14 +183,12 @@ class signal_home:
         ws = websocket.WebSocketApp(self.freeAPI.ws_url,
                                     on_open=self.on_open,
                                     on_message=self.ws_message,
+                                    on_error=self.on_error,
                                     header=header)
         ws.run_forever()
 
 
 def wait_for_signal_cli():
-    """
-    Wait until signal cli rest api is available
-    """
     while not messages.BOT.is_alive():
         continue
 

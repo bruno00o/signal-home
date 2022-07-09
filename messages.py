@@ -13,14 +13,10 @@ import system_commands
 
 SIGNAL_CLI = "http://localhost:8080/"
 WS_SIGNAL_CLI = "ws://localhost:8080/"
-# Signal number used with the signal API
-NUMBER = ""
-# Will send a message to ADMIN_NAME to say the bot is connected
-# Name in the family.json file
-ADMIN_NAME = ""
 
 # Initialize SignalBot
-BOT = SignalBot(SIGNAL_CLI, NUMBER)
+BOT_PHONE_NUMBER = "+33600000000"
+BOT = SignalBot(SIGNAL_CLI, BOT_PHONE_NUMBER)
 
 AT_HOME = []
 RECAP = {}
@@ -47,6 +43,7 @@ with open('family.json') as file:
 
 # Initialize list of numbers in family
 NUMBERS = [FAMILY[i]["tel"] for i in FAMILY]
+ADMIN_NAME = "admin"
 ADMIN = FAMILY[ADMIN_NAME]["tel"]
 
 # Messages
@@ -66,8 +63,7 @@ AT_HOME_MSG = {0: ["Personne n'est à la maison",
                      "{} {} {} sont à la maison 🏠"],
                len(FAMILY): ["Tout le monde est à la maison",
                "Il y a tout le monde à la maison",
-                             "Tout le monde est à la maison 🏠",
-                             "👨‍👩‍👧‍👦 ➡️ 🏡"]}
+                             "Tout le monde est à la maison 🏠"]}
 HELP_MSG = {"list": "Liste des commandes : \n- ",
             "key": "Une commande doit commencer par le caractère '{}'".format(COMMAND_KEY)}
 YOUR_WELCOME_MSG = ["Pas de soucis !", "Pas de problème", "👍"]
@@ -81,7 +77,8 @@ EMPTY_RECAP = ["Rien à signaler aujourd'hui !",
 # Reactions
 
 ON_THE_WAY = ["on rentre", "je rentre"]
-ARRIVED = ["je suis arrivé", "je suis au boulot", "je suis au bureau"]
+ARRIVED = ["je suis arrivé", "je suis au bureau", "je suis à la maison",
+           "je suis arrivée"]
 ASKED_AT_HOME = ["qui est à la maison", "qui est à la maison?", "qui est à la maison ?",
                  "y a qui à la maison", "y a qui à la maison ?", "y a quelqu'un à la maison"]
 

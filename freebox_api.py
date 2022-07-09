@@ -12,7 +12,7 @@ import hmac
 
 # Initialize application name for the freebox
 DEFAULT = {
-    "app_id": "signal-home",
+    "app_id": "Signal-Home",
     "app_name": "signal_home",
     "app_version": "4.0.1",
     "device_name": "signal-home"
